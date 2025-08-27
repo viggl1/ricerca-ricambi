@@ -3,7 +3,6 @@ import streamlit as st
 from rapidfuzz import fuzz
 import os
 import sys
-import pyperclip
 
 # ---------------- CONFIGURAZIONE PAGINA ----------------
 st.set_page_config(page_title="Ricerca Ricambi", layout="wide")
@@ -72,18 +71,6 @@ st.markdown("""
         font-size: 14px;
         color: #555;
     }
-    .copy-btn {
-        background-color: #007bff;
-        color: white;
-        border: none;
-        padding: 8px 12px;
-        font-size: 14px;
-        border-radius: 8px;
-        cursor: pointer;
-    }
-    .copy-btn:hover {
-        background-color: #0056b3;
-    }
     /* Sticky search bar for mobile */
     @media (max-width: 768px) {
         .sidebar .block-container {
@@ -95,10 +82,6 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-
-# ---------------- RILEVAMENTO MOBILE (Semplice) ----------------
-is_mobile = st.experimental_get_query_params().get("mobile", ["false"])[0] == "true"
-# (Alternativa avanzata: usare streamlit-javascript)
 
 # ---------------- CARICA DATI ----------------
 df = load_data()
@@ -121,6 +104,9 @@ with st.sidebar:
     if st.button("🔄 Reset filtri"):
         st.experimental_rerun()
 
+# Checkbox per simulare modalità mobile
+is_mobile = st.sidebar.checkbox("📱 Modalità Mobile (simula)", value=False)
+
 # ---------------- FILTRAGGIO ----------------
 filtro = df.copy()
 
@@ -140,11 +126,12 @@ if macchinario_input != "Tutte":
 # ---------------- RISULTATI ----------------
 st.markdown(f"### 📦 {len(filtro)} risultato(i) trovati")
 
-if st.button("📥 Scarica tutti i risultati"):
-    st.download_button("Download CSV", filtro.to_csv(index=False), "risultati.csv", "text/csv")
+# Download CSV globale
+if not filtro.empty:
+    st.download_button("📥 Scarica tutti i risultati (CSV)", filtro.to_csv(index=False), "risultati.csv", "text/csv")
 
-# Visualizzazione: Mobile → Card View, Desktop → Tabella
-if is_mobile or st.sidebar.checkbox("Modalità Mobile (simula)"):
+# Visualizzazione
+if is_mobile:
     st.info("📱 Visualizzazione Mobile attiva")
     for _, row in filtro.iterrows():
         st.markdown(f"""
@@ -155,12 +142,14 @@ if is_mobile or st.sidebar.checkbox("Modalità Mobile (simula)"):
                 <p><strong>🛠️ Categoria:</strong> {row['Categoria']}</p>
             </div>
         """, unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button(f"📋 Copia Codice {row['Codice']}", key=f"copy_{row['Codice']}"):
-                pyperclip.copy(str(row['Codice']))
-                st.success("Codice copiato!")
-        with col2:
-            st.download_button(f"⬇ Scarica {row['Codice']}", data=row.to_frame().T.to_csv(index=False), file_name=f"{row['Codice']}.csv", mime="text/csv", key=f"dl_{row['Codice']}")
+
+        # Pulsante download singolo record
+        st.download_button(
+            f"⬇ Scarica {row['Codice']}",
+            data=row.to_frame().T.to_csv(index=False),
+            file_name=f"{row['Codice']}.csv",
+            mime="text/csv",
+            key=f"dl_{row['Codice']}"
+        )
 else:
     st.dataframe(filtro[["Codice", "Descrizione", "Ubicazione", "Categoria"]], use_container_width=True, height=450)
