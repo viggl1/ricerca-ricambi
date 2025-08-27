@@ -90,6 +90,16 @@ if df.empty:
 
 df.columns = df.columns.str.strip().str.title()
 
+# ---------------- INIZIALIZZAZIONE SESSION_STATE ----------------
+if "codice" not in st.session_state:
+    st.session_state.codice = ""
+if "descrizione" not in st.session_state:
+    st.session_state.descrizione = ""
+if "ubicazione" not in st.session_state:
+    st.session_state.ubicazione = ""
+if "categoria" not in st.session_state:
+    st.session_state.categoria = "Tutte"
+
 # ---------------- INTERFACCIA ----------------
 st.title("🔍 Ricerca Ricambi in Magazzino")
 
@@ -102,7 +112,6 @@ with st.sidebar:
     macchinario_input = st.selectbox("🛠️ Categoria", categorie_uniche, key="categoria")
 
     if st.button("🔄 Reset filtri"):
-        # Reset dei filtri
         st.session_state.codice = ""
         st.session_state.descrizione = ""
         st.session_state.ubicazione = ""
