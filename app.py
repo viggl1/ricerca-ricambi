@@ -3,9 +3,10 @@ import streamlit as st
 from rapidfuzz import fuzz
 import os
 import sys
+import re
 from streamlit_javascript import st_javascript
 
-# ---------------- CONFIGURAZIONE PAGINA ----------------
+# ---------------- CONFIGURAZIONE ----------------
 st.set_page_config(page_title="Ricerca Ricambi", layout="wide")
 
 # ---------------- FUNZIONI ----------------
@@ -43,33 +44,35 @@ def fuzzy_search_balanced(df, column, query, threshold=70):
         )
         return df[mask]
 
-# ---------------- CSS MODERNO ----------------
+def evidenzia_testo(testo, keyword):
+    if not keyword:
+        return testo
+    pattern = re.compile(rf"({re.escape(keyword)})", re.IGNORECASE)
+    return pattern.sub(r"<mark>\1</mark>", testo)
+
+# ---------------- CSS ----------------
 st.markdown("""
     <style>
-    body, .stApp {
-        font-family: 'Segoe UI', sans-serif;
-    }
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 1rem;
-    }
-    /* Card Style */
+    body, .stApp { font-family: 'Segoe UI', sans-serif; }
+    .block-container { padding-top: 1rem; padding-bottom: 1rem; }
     .card {
-        background-color: #f8f9fa;
+        background-color: #ffffff;
         border-radius: 12px;
         padding: 15px;
-        margin-bottom: 10px;
+        margin-bottom: 14px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border-left: 5px solid #007bff;
     }
-    .card h4 {
-        margin: 0;
-        font-size: 18px;
-        color: #333;
-    }
-    .card p {
-        margin: 5px 0;
-        font-size: 14px;
-        color: #555;
+    .card h4 { margin: 0 0 8px; font-size: 18px; color: #007bff; }
+    .card p { margin: 4px 0; font-size: 14px; color: #333; }
+    mark { background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px; }
+    .top-btn {
+        position: fixed; bottom: 20px; right: 20px;
+        background-color: #007bff; color: white;
+        border-radius: 50%; width: 45px; height: 45px;
+        text-align: center; font-size: 20px; cursor: pointer;
+        line-height: 45px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        z-index: 100;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -81,35 +84,30 @@ if df.empty:
 
 df.columns = df.columns.str.strip().str.title()
 
-# ---------------- INIZIALIZZAZIONE SESSION_STATE ----------------
-st.session_state.setdefault("codice", "")
-st.session_state.setdefault("descrizione", "")
-st.session_state.setdefault("ubicazione", "")
-st.session_state.setdefault("categoria", "Tutte")
+# ---------------- SESSION STATE ----------------
+for key, default in {"codice": "", "descrizione": "", "ubicazione": "", "categoria": "Tutte"}.items():
+    st.session_state.setdefault(key, default)
 
-# ---------------- FUNZIONE RESET ----------------
 def reset_filtri():
-    st.session_state.codice = ""
-    st.session_state.descrizione = ""
-    st.session_state.ubicazione = ""
-    st.session_state.categoria = "Tutte"
+    st.session_state.update({
+        "codice": "",
+        "descrizione": "",
+        "ubicazione": "",
+        "categoria": "Tutte"
+    })
 
-# ---------------- RILEVA MOBILE AUTOMATICAMENTE ----------------
+# ---------------- DETECT MOBILE ----------------
 screen_width = st_javascript("window.innerWidth")
-is_mobile = screen_width is not None and screen_width < 768
+is_mobile = False
+if screen_width is not None and screen_width < 768:
+    is_mobile = True
 
-# ---------------- INTERFACCIA ----------------
+# ---------------- UI ----------------
 st.title("🔍 Ricerca Ricambi in Magazzino")
 
-# FILTRI: MOBILE → Pop-up, DESKTOP → Sidebar
 if is_mobile:
-    st.markdown("""
-        <div style="background-color:#f0f2f6;padding:10px;border-radius:8px;margin-bottom:10px;text-align:center;">
-            📱 Tocca il pulsante sotto per aprire i filtri.
-        </div>
-    """, unsafe_allow_html=True)
-
-    with st.popover("📌 Apri Filtri"):
+    st.info("📱 Modalità Mobile attiva")
+    with st.expander("📌 Mostra Filtri"):
         st.text_input("🔢 Codice", placeholder="Inserisci codice...", key="codice")
         st.text_input("📄 Descrizione", placeholder="Inserisci descrizione...", key="descrizione")
         st.text_input("📍 Ubicazione", placeholder="Inserisci ubicazione...", key="ubicazione")
@@ -128,39 +126,36 @@ else:
 
 # ---------------- FILTRAGGIO ----------------
 filtro = df.copy()
-
 if st.session_state.codice:
     filtro["Codice_str"] = filtro["Codice"].astype(str).str.strip()
     filtro = filtro[filtro["Codice_str"].str.contains(st.session_state.codice.strip(), case=False, na=False)]
-
 if st.session_state.descrizione:
     filtro = fuzzy_search_balanced(filtro, "Descrizione", st.session_state.descrizione.strip(), threshold=70)
-
 if st.session_state.ubicazione:
     filtro = filtro[filtro["Ubicazione"].astype(str).str.contains(st.session_state.ubicazione.strip(), case=False, na=False)]
-
 if st.session_state.categoria != "Tutte":
     filtro = filtro[filtro["Categoria"].astype(str).str.lower() == st.session_state.categoria.lower()]
 
 # ---------------- RISULTATI ----------------
 st.markdown(f"### 📦 {len(filtro)} risultato(i) trovati")
 
-# Download CSV solo su DESKTOP
 if not filtro.empty and not is_mobile:
     st.download_button("📥 Scarica tutti i risultati (CSV)", filtro.to_csv(index=False), "risultati.csv", "text/csv")
 
 # ---------------- VISUALIZZAZIONE ----------------
 if is_mobile:
-    st.info("📱 Visualizzazione Mobile attiva")
+    keyword = st.session_state.descrizione
     for _, row in filtro.iterrows():
+        descrizione = evidenzia_testo(str(row['Descrizione']), keyword)
         st.markdown(f"""
             <div class="card">
-                <h4>{row['Codice']}</h4>
-                <p><strong>Descrizione:</strong> {row['Descrizione']}</p>
+                <h4>🔢 {row['Codice']}</h4>
+                <p><strong>📄 Descrizione:</strong> {descrizione}</p>
                 <p><strong>📍 Ubicazione:</strong> {row['Ubicazione']}</p>
                 <p><strong>🛠️ Categoria:</strong> {row['Categoria']}</p>
             </div>
         """, unsafe_allow_html=True)
+    st.markdown('<div class="top-btn" onclick="window.scrollTo({top: 0, behavior: \'smooth\'});">⬆️</div>', unsafe_allow_html=True)
 else:
     st.dataframe(filtro[["Codice", "Descrizione", "Ubicazione", "Categoria"]],
                  use_container_width=True, height=450)
