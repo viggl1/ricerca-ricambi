@@ -91,13 +91,16 @@ if df.empty:
 df.columns = df.columns.str.strip().str.title()
 
 # ---------------- INIZIALIZZAZIONE SESSION_STATE ----------------
-if "codice" not in st.session_state:
+st.session_state.setdefault("codice", "")
+st.session_state.setdefault("descrizione", "")
+st.session_state.setdefault("ubicazione", "")
+st.session_state.setdefault("categoria", "Tutte")
+
+# ---------------- FUNZIONE RESET ----------------
+def reset_filtri():
     st.session_state.codice = ""
-if "descrizione" not in st.session_state:
     st.session_state.descrizione = ""
-if "ubicazione" not in st.session_state:
     st.session_state.ubicazione = ""
-if "categoria" not in st.session_state:
     st.session_state.categoria = "Tutte"
 
 # ---------------- INTERFACCIA ----------------
@@ -111,12 +114,8 @@ with st.sidebar:
     categorie_uniche = ["Tutte"] + sorted(df["Categoria"].dropna().unique().tolist())
     macchinario_input = st.selectbox("🛠️ Categoria", categorie_uniche, key="categoria")
 
-    if st.button("🔄 Reset filtri"):
-        st.session_state.codice = ""
-        st.session_state.descrizione = ""
-        st.session_state.ubicazione = ""
-        st.session_state.categoria = "Tutte"
-        st.experimental_rerun()
+    # Pulsante reset con on_click
+    st.button("🔄 Reset filtri", on_click=reset_filtri)
 
 # ---------------- RILEVA MOBILE AUTOMATICAMENTE ----------------
 screen_width = st_javascript("window.innerWidth")
