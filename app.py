@@ -5,7 +5,7 @@ import os
 import sys
 from streamlit_javascript import st_javascript
 
-# ---------------- CONFIGURAZIONE PAGINA ----------------
+# ---------------- CONFIGURAZIONE ----------------
 st.set_page_config(page_title="Ricerca Ricambi", layout="wide")
 
 # ---------------- FUNZIONI ----------------
@@ -43,7 +43,15 @@ def fuzzy_search_balanced(df, column, query, threshold=70):
         )
         return df[mask]
 
-# ---------------- CSS MODERNO ----------------
+def evidenzia_testo(testo, keyword):
+    if not keyword:
+        return testo
+    for parola in keyword.split():
+        testo = testo.replace(parola, f"<mark>{parola}</mark>")
+        testo = testo.replace(parola.capitalize(), f"<mark>{parola.capitalize()}</mark>")
+    return testo
+
+# ---------------- CSS ----------------
 st.markdown("""
     <style>
     body, .stApp {
@@ -53,32 +61,44 @@ st.markdown("""
         padding-top: 1rem;
         padding-bottom: 1rem;
     }
-    /* Card Style */
     .card {
-        background-color: #f8f9fa;
+        background-color: #ffffff;
         border-radius: 12px;
         padding: 15px;
-        margin-bottom: 10px;
+        margin-bottom: 14px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border-left: 5px solid #007bff;
     }
     .card h4 {
-        margin: 0;
+        margin: 0 0 8px;
         font-size: 18px;
-        color: #333;
+        color: #007bff;
     }
     .card p {
-        margin: 5px 0;
+        margin: 4px 0;
         font-size: 14px;
-        color: #555;
+        color: #333;
     }
-    /* Sticky sidebar on mobile */
-    @media (max-width: 768px) {
-        .sidebar .block-container {
-            position: sticky;
-            top: 0;
-            background-color: white;
-            z-index: 10;
-        }
+    mark {
+        background-color: #ffeb3b;
+        padding: 2px 4px;
+        border-radius: 3px;
+    }
+    .top-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 50%;
+        width: 45px;
+        height: 45px;
+        text-align: center;
+        font-size: 20px;
+        cursor: pointer;
+        line-height: 45px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        z-index: 100;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -90,76 +110,78 @@ if df.empty:
 
 df.columns = df.columns.str.strip().str.title()
 
-# ---------------- INIZIALIZZAZIONE SESSION_STATE ----------------
-st.session_state.setdefault("codice", "")
-st.session_state.setdefault("descrizione", "")
-st.session_state.setdefault("ubicazione", "")
-st.session_state.setdefault("categoria", "Tutte")
+# ---------------- SESSION STATE ----------------
+for key, default in {"codice": "", "descrizione": "", "ubicazione": "", "categoria": "Tutte"}.items():
+    st.session_state.setdefault(key, default)
 
-# ---------------- FUNZIONE RESET ----------------
 def reset_filtri():
     st.session_state.codice = ""
     st.session_state.descrizione = ""
     st.session_state.ubicazione = ""
     st.session_state.categoria = "Tutte"
 
-# ---------------- INTERFACCIA ----------------
-st.title("🔍 Ricerca Ricambi in Magazzino")
-
-with st.sidebar:
-    st.header("📌 Filtri ricerca")
-    codice_input = st.text_input("🔢 Codice", placeholder="Inserisci codice...", key="codice")
-    descrizione_input = st.text_input("📄 Descrizione", placeholder="Inserisci descrizione...", key="descrizione")
-    posizione_input = st.text_input("📍 Ubicazione", placeholder="Inserisci ubicazione...", key="ubicazione")
-    categorie_uniche = ["Tutte"] + sorted(df["Categoria"].dropna().unique().tolist())
-    macchinario_input = st.selectbox("🛠️ Categoria", categorie_uniche, key="categoria")
-
-    # Pulsante reset con on_click
-    st.button("🔄 Reset filtri", on_click=reset_filtri)
-
-# ---------------- RILEVA MOBILE AUTOMATICAMENTE ----------------
+# ---------------- DETECT MOBILE ----------------
 screen_width = st_javascript("window.innerWidth")
 is_mobile = screen_width is not None and screen_width < 768
 
+# ---------------- UI ----------------
+st.title("🔍 Ricerca Ricambi in Magazzino")
+
+if is_mobile:
+    st.info("📱 Modalità Mobile attiva")
+    with st.expander("📌 Mostra Filtri"):
+        st.markdown("Utilizza i filtri per affinare la ricerca:")
+        st.text_input("🔢 Codice", placeholder="Inserisci codice...", key="codice")
+        st.text_input("📄 Descrizione", placeholder="Inserisci descrizione...", key="descrizione")
+        st.text_input("📍 Ubicazione", placeholder="Inserisci ubicazione...", key="ubicazione")
+        categorie_uniche = ["Tutte"] + sorted(df["Categoria"].dropna().unique().tolist())
+        st.selectbox("🛠️ Categoria", categorie_uniche, key="categoria")
+        st.button("🔄 Reset filtri", on_click=reset_filtri)
+else:
+    with st.sidebar:
+        st.header("📌 Filtri ricerca")
+        st.text_input("🔢 Codice", placeholder="Inserisci codice...", key="codice")
+        st.text_input("📄 Descrizione", placeholder="Inserisci descrizione...", key="descrizione")
+        st.text_input("📍 Ubicazione", placeholder="Inserisci ubicazione...", key="ubicazione")
+        categorie_uniche = ["Tutte"] + sorted(df["Categoria"].dropna().unique().tolist())
+        st.selectbox("🛠️ Categoria", categorie_uniche, key="categoria")
+        st.button("🔄 Reset filtri", on_click=reset_filtri)
+
 # ---------------- FILTRAGGIO ----------------
 filtro = df.copy()
-
 if st.session_state.codice:
     filtro["Codice_str"] = filtro["Codice"].astype(str).str.strip()
     filtro = filtro[filtro["Codice_str"].str.contains(st.session_state.codice.strip(), case=False, na=False)]
-
 if st.session_state.descrizione:
     filtro = fuzzy_search_balanced(filtro, "Descrizione", st.session_state.descrizione.strip(), threshold=70)
-
 if st.session_state.ubicazione:
     filtro = filtro[filtro["Ubicazione"].astype(str).str.contains(st.session_state.ubicazione.strip(), case=False, na=False)]
-
 if st.session_state.categoria != "Tutte":
     filtro = filtro[filtro["Categoria"].astype(str).str.lower() == st.session_state.categoria.lower()]
 
 # ---------------- RISULTATI ----------------
 st.markdown(f"### 📦 {len(filtro)} risultato(i) trovati")
 
-# Download CSV solo su DESKTOP
 if not filtro.empty and not is_mobile:
     st.download_button("📥 Scarica tutti i risultati (CSV)", filtro.to_csv(index=False), "risultati.csv", "text/csv")
 
 # ---------------- VISUALIZZAZIONE ----------------
 if is_mobile:
-    st.info("📱 Visualizzazione Mobile attiva")
-    # Mostra tutte le card senza paginazione
+    keyword = st.session_state.descrizione
     for _, row in filtro.iterrows():
+        descrizione = evidenzia_testo(str(row['Descrizione']), keyword)
         st.markdown(f"""
             <div class="card">
-                <h4>{row['Codice']}</h4>
-                <p><strong>Descrizione:</strong> {row['Descrizione']}</p>
+                <h4>🔢 {row['Codice']}</h4>
+                <p><strong>📄 Descrizione:</strong> {descrizione}</p>
                 <p><strong>📍 Ubicazione:</strong> {row['Ubicazione']}</p>
                 <p><strong>🛠️ Categoria:</strong> {row['Categoria']}</p>
             </div>
         """, unsafe_allow_html=True)
 
+    # Bottone torna su
+    st.markdown('<div class="top-btn" onclick="window.scrollTo({top: 0, behavior: \'smooth\'});">⬆️</div>', unsafe_allow_html=True)
+
 else:
     st.dataframe(filtro[["Codice", "Descrizione", "Ubicazione", "Categoria"]],
                  use_container_width=True, height=450)
-
-
