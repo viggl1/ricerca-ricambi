@@ -117,6 +117,10 @@ st.title("🔍 Ricerca Ricambi in Magazzino")
 if is_mobile:
     st.info("📱 Modalità Mobile attiva")
 
+    # Floating button Streamlit per aprire popup
+    if st.button("🔧", key="fab_open", help="Apri filtri"):
+        st.session_state.show_popup = True
+
     # Mostra popup se attivo
     if st.session_state.show_popup:
         st.markdown('<div class="popup-overlay">', unsafe_allow_html=True)
@@ -133,9 +137,6 @@ if is_mobile:
                 st.session_state.show_popup = False
             st.markdown('</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
-
-    # Pulsante fluttuante per aprire popup
-    st.markdown('<div class="fab" onclick="window.parent.postMessage({type: \'streamlit:setComponentValue\', key: \'show_popup\', value: true}, \'*\')">⚙️</div>', unsafe_allow_html=True)
 else:
     with st.sidebar:
         st.header("📌 Filtri ricerca")
