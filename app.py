@@ -66,13 +66,22 @@ st.markdown("""
     .card h4 { margin: 0 0 8px; font-size: 18px; color: #007bff; }
     .card p { margin: 4px 0; font-size: 14px; color: #333; }
     mark { background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px; }
-    .top-btn {
-        position: fixed; bottom: 20px; right: 20px;
+    .fab {
+        position: fixed; bottom: 20px; left: 20px;
         background-color: #007bff; color: white;
-        border-radius: 50%; width: 45px; height: 45px;
-        text-align: center; font-size: 20px; cursor: pointer;
-        line-height: 45px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        border-radius: 50%; width: 50px; height: 50px;
+        text-align: center; font-size: 24px; cursor: pointer;
+        line-height: 50px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         z-index: 100;
+    }
+    .popup-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5); z-index: 200; display: flex;
+        justify-content: center; align-items: center;
+    }
+    .popup {
+        background: white; padding: 20px; border-radius: 10px;
+        width: 90%; max-width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -85,7 +94,7 @@ if df.empty:
 df.columns = df.columns.str.strip().str.title()
 
 # ---------------- SESSION STATE ----------------
-for key, default in {"codice": "", "descrizione": "", "ubicazione": "", "categoria": "Tutte"}.items():
+for key, default in {"codice": "", "descrizione": "", "ubicazione": "", "categoria": "Tutte", "show_popup": False}.items():
     st.session_state.setdefault(key, default)
 
 def reset_filtri():
@@ -107,13 +116,26 @@ st.title("🔍 Ricerca Ricambi in Magazzino")
 
 if is_mobile:
     st.info("📱 Modalità Mobile attiva")
-    with st.expander("📌 Mostra Filtri"):
-        st.text_input("🔢 Codice", placeholder="Inserisci codice...", key="codice")
-        st.text_input("📄 Descrizione", placeholder="Inserisci descrizione...", key="descrizione")
-        st.text_input("📍 Ubicazione", placeholder="Inserisci ubicazione...", key="ubicazione")
-        categorie_uniche = ["Tutte"] + sorted(df["Categoria"].dropna().unique().tolist())
-        st.selectbox("🛠️ Categoria", categorie_uniche, key="categoria")
-        st.button("🔄 Reset filtri", on_click=reset_filtri)
+
+    # Mostra popup se attivo
+    if st.session_state.show_popup:
+        st.markdown('<div class="popup-overlay">', unsafe_allow_html=True)
+        with st.container():
+            st.markdown('<div class="popup">', unsafe_allow_html=True)
+            st.subheader("📌 Filtri")
+            st.text_input("🔢 Codice", placeholder="Inserisci codice...", key="codice")
+            st.text_input("📄 Descrizione", placeholder="Inserisci descrizione...", key="descrizione")
+            st.text_input("📍 Ubicazione", placeholder="Inserisci ubicazione...", key="ubicazione")
+            categorie_uniche = ["Tutte"] + sorted(df["Categoria"].dropna().unique().tolist())
+            st.selectbox("🛠️ Categoria", categorie_uniche, key="categoria")
+            st.button("🔄 Reset filtri", on_click=reset_filtri)
+            if st.button("Chiudi"):
+                st.session_state.show_popup = False
+            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Pulsante fluttuante per aprire popup
+    st.markdown('<div class="fab" onclick="window.parent.postMessage({type: \'streamlit:setComponentValue\', key: \'show_popup\', value: true}, \'*\')">⚙️</div>', unsafe_allow_html=True)
 else:
     with st.sidebar:
         st.header("📌 Filtri ricerca")
@@ -155,7 +177,6 @@ if is_mobile:
                 <p><strong>🛠️ Categoria:</strong> {row['Categoria']}</p>
             </div>
         """, unsafe_allow_html=True)
-    st.markdown('<div class="top-btn" onclick="window.scrollTo({top: 0, behavior: \'smooth\'});">⬆️</div>', unsafe_allow_html=True)
 else:
     st.dataframe(filtro[["Codice", "Descrizione", "Ubicazione", "Categoria"]],
                  use_container_width=True, height=450)
