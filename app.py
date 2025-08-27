@@ -95,13 +95,18 @@ st.title("🔍 Ricerca Ricambi in Magazzino")
 
 with st.sidebar:
     st.header("📌 Filtri ricerca")
-    codice_input = st.text_input("🔢 Codice", placeholder="Inserisci codice...")
-    descrizione_input = st.text_input("📄 Descrizione", placeholder="Inserisci descrizione...")
-    posizione_input = st.text_input("📍 Ubicazione", placeholder="Inserisci ubicazione...")
+    codice_input = st.text_input("🔢 Codice", placeholder="Inserisci codice...", key="codice")
+    descrizione_input = st.text_input("📄 Descrizione", placeholder="Inserisci descrizione...", key="descrizione")
+    posizione_input = st.text_input("📍 Ubicazione", placeholder="Inserisci ubicazione...", key="ubicazione")
     categorie_uniche = ["Tutte"] + sorted(df["Categoria"].dropna().unique().tolist())
-    macchinario_input = st.selectbox("🛠️ Categoria", categorie_uniche)
+    macchinario_input = st.selectbox("🛠️ Categoria", categorie_uniche, key="categoria")
 
     if st.button("🔄 Reset filtri"):
+        # Reset dei filtri
+        st.session_state.codice = ""
+        st.session_state.descrizione = ""
+        st.session_state.ubicazione = ""
+        st.session_state.categoria = "Tutte"
         st.experimental_rerun()
 
 # ---------------- RILEVA MOBILE AUTOMATICAMENTE ----------------
@@ -111,18 +116,18 @@ is_mobile = screen_width is not None and screen_width < 768
 # ---------------- FILTRAGGIO ----------------
 filtro = df.copy()
 
-if codice_input:
+if st.session_state.codice:
     filtro["Codice_str"] = filtro["Codice"].astype(str).str.strip()
-    filtro = filtro[filtro["Codice_str"].str.contains(codice_input.strip(), case=False, na=False)]
+    filtro = filtro[filtro["Codice_str"].str.contains(st.session_state.codice.strip(), case=False, na=False)]
 
-if descrizione_input:
-    filtro = fuzzy_search_balanced(filtro, "Descrizione", descrizione_input.strip(), threshold=70)
+if st.session_state.descrizione:
+    filtro = fuzzy_search_balanced(filtro, "Descrizione", st.session_state.descrizione.strip(), threshold=70)
 
-if posizione_input:
-    filtro = filtro[filtro["Ubicazione"].astype(str).str.contains(posizione_input.strip(), case=False, na=False)]
+if st.session_state.ubicazione:
+    filtro = filtro[filtro["Ubicazione"].astype(str).str.contains(st.session_state.ubicazione.strip(), case=False, na=False)]
 
-if macchinario_input != "Tutte":
-    filtro = filtro[filtro["Categoria"].astype(str).str.lower() == macchinario_input.lower()]
+if st.session_state.categoria != "Tutte":
+    filtro = filtro[filtro["Categoria"].astype(str).str.lower() == st.session_state.categoria.lower()]
 
 # ---------------- RISULTATI ----------------
 st.markdown(f"### 📦 {len(filtro)} risultato(i) trovati")
