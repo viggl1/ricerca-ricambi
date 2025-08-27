@@ -3,6 +3,7 @@ import streamlit as st
 from rapidfuzz import fuzz
 import os
 import sys
+from streamlit_javascript import st_javascript
 
 # ---------------- CONFIGURAZIONE PAGINA ----------------
 st.set_page_config(page_title="Ricerca Ricambi", layout="wide")
@@ -47,7 +48,6 @@ st.markdown("""
     <style>
     body, .stApp {
         font-family: 'Segoe UI', sans-serif;
-        font-size: 15px;
     }
     .block-container {
         padding-top: 1rem;
@@ -71,7 +71,7 @@ st.markdown("""
         font-size: 14px;
         color: #555;
     }
-    /* Sticky search bar for mobile */
+    /* Sticky sidebar on mobile */
     @media (max-width: 768px) {
         .sidebar .block-container {
             position: sticky;
@@ -104,8 +104,9 @@ with st.sidebar:
     if st.button("🔄 Reset filtri"):
         st.experimental_rerun()
 
-# Checkbox per simulare modalità mobile
-is_mobile = st.sidebar.checkbox("📱 Modalità Mobile (simula)", value=False)
+# ---------------- RILEVA MOBILE AUTOMATICAMENTE ----------------
+screen_width = st_javascript("window.innerWidth")
+is_mobile = screen_width is not None and screen_width < 768
 
 # ---------------- FILTRAGGIO ----------------
 filtro = df.copy()
@@ -130,10 +131,20 @@ st.markdown(f"### 📦 {len(filtro)} risultato(i) trovati")
 if not filtro.empty:
     st.download_button("📥 Scarica tutti i risultati (CSV)", filtro.to_csv(index=False), "risultati.csv", "text/csv")
 
-# Visualizzazione
+# ---------------- VISUALIZZAZIONE ----------------
 if is_mobile:
     st.info("📱 Visualizzazione Mobile attiva")
-    for _, row in filtro.iterrows():
+
+    # PAGINAZIONE
+    items_per_page = 10
+    total_pages = (len(filtro) // items_per_page) + (1 if len(filtro) % items_per_page > 0 else 0)
+    page = st.number_input("Pagina", min_value=1, max_value=max(total_pages, 1), value=1, step=1)
+
+    start_idx = (page - 1) * items_per_page
+    end_idx = start_idx + items_per_page
+    subset = filtro.iloc[start_idx:end_idx]
+
+    for _, row in subset.iterrows():
         st.markdown(f"""
             <div class="card">
                 <h4>{row['Codice']}</h4>
@@ -143,7 +154,6 @@ if is_mobile:
             </div>
         """, unsafe_allow_html=True)
 
-        # Pulsante download singolo record
         st.download_button(
             f"⬇ Scarica {row['Codice']}",
             data=row.to_frame().T.to_csv(index=False),
@@ -151,5 +161,9 @@ if is_mobile:
             mime="text/csv",
             key=f"dl_{row['Codice']}"
         )
+
+    st.write(f"Pagina {page} di {total_pages}")
+
 else:
-    st.dataframe(filtro[["Codice", "Descrizione", "Ubicazione", "Categoria"]], use_container_width=True, height=450)
+    st.dataframe(filtro[["Codice", "Descrizione", "Ubicazione", "Categoria"]],
+                 use_container_width=True, height=450)
