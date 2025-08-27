@@ -91,7 +91,7 @@ if df.empty:
 df.columns = df.columns.str.strip().str.title()
 
 # ---------------- INTERFACCIA ----------------
-st.title("🔍 Ricerca Ricambi in Magazzino")
+st.title("🔍 Ricerca Ricambi Magazzino")
 
 with st.sidebar:
     st.header("📌 Filtri ricerca")
@@ -159,3 +159,4 @@ if is_mobile:
 else:
     st.dataframe(filtro[["Codice", "Descrizione", "Ubicazione", "Categoria"]],
                  use_container_width=True, height=450)
+
