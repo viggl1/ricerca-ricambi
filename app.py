@@ -127,8 +127,8 @@ if macchinario_input != "Tutte":
 # ---------------- RISULTATI ----------------
 st.markdown(f"### 📦 {len(filtro)} risultato(i) trovati")
 
-# Download CSV globale
-if not filtro.empty:
+# Download CSV solo su DESKTOP
+if not filtro.empty and not is_mobile:
     st.download_button("📥 Scarica tutti i risultati (CSV)", filtro.to_csv(index=False), "risultati.csv", "text/csv")
 
 # ---------------- VISUALIZZAZIONE ----------------
@@ -153,14 +153,6 @@ if is_mobile:
                 <p><strong>🛠️ Categoria:</strong> {row['Categoria']}</p>
             </div>
         """, unsafe_allow_html=True)
-
-        st.download_button(
-            f"⬇ Scarica {row['Codice']}",
-            data=row.to_frame().T.to_csv(index=False),
-            file_name=f"{row['Codice']}.csv",
-            mime="text/csv",
-            key=f"dl_{row['Codice']}"
-        )
 
     st.write(f"Pagina {page} di {total_pages}")
 
