@@ -91,7 +91,7 @@ if df.empty:
 df.columns = df.columns.str.strip().str.title()
 
 # ---------------- INTERFACCIA ----------------
-st.title("🔍 Ricerca Ricambi Magazzino")
+st.title("🔍 Ricerca Ricambi in Magazzino")
 
 with st.sidebar:
     st.header("📌 Filtri ricerca")
@@ -134,17 +134,8 @@ if not filtro.empty and not is_mobile:
 # ---------------- VISUALIZZAZIONE ----------------
 if is_mobile:
     st.info("📱 Visualizzazione Mobile attiva")
-
-    # PAGINAZIONE
-    items_per_page = 10
-    total_pages = (len(filtro) // items_per_page) + (1 if len(filtro) % items_per_page > 0 else 0)
-    page = st.number_input("Pagina", min_value=1, max_value=max(total_pages, 1), value=1, step=1)
-
-    start_idx = (page - 1) * items_per_page
-    end_idx = start_idx + items_per_page
-    subset = filtro.iloc[start_idx:end_idx]
-
-    for _, row in subset.iterrows():
+    # Mostra tutte le card senza paginazione
+    for _, row in filtro.iterrows():
         st.markdown(f"""
             <div class="card">
                 <h4>{row['Codice']}</h4>
@@ -154,9 +145,6 @@ if is_mobile:
             </div>
         """, unsafe_allow_html=True)
 
-    st.write(f"Pagina {page} di {total_pages}")
-
 else:
     st.dataframe(filtro[["Codice", "Descrizione", "Ubicazione", "Categoria"]],
                  use_container_width=True, height=450)
-
